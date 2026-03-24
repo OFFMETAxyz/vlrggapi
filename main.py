@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.utils.rate_limiter import RateLimitMiddleware
 from routers.v2_router import router as v2_router
@@ -15,6 +17,15 @@ from utils.http_client import close_http_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class NoIndexMiddleware(BaseHTTPMiddleware):
+    """Prevent search engines from indexing any endpoint."""
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
 
 
 @asynccontextmanager
@@ -41,6 +52,7 @@ app = FastAPI(
 # unauthenticated floods get a cheap 401 without consuming rate-limit budget,
 # and CORS still wraps the 401.
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(NoIndexMiddleware)
 app.add_middleware(APIKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +64,11 @@ app.add_middleware(
 
 app.include_router(vlr_router)
 app.include_router(v2_router)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    return PlainTextResponse("User-agent: *\nDisallow: /\n")
 
 
 @app.get("/version", tags=["Meta"])
