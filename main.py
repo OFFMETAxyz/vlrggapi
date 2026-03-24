@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from api.utils.rate_limiter import RateLimitMiddleware
 from routers.v2_router import router as v2_router
 from routers.vlr_router import router as vlr_router
+from utils.auth_middleware import APIKeyMiddleware
 from utils.constants import API_DESCRIPTION, API_PORT, API_TITLE
 from utils.http_client import close_http_client
 
@@ -30,7 +31,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Starlette runs the LAST-added middleware OUTERMOST. Register APIKeyMiddleware
+# after RateLimitMiddleware so auth runs FIRST — unauthenticated floods get a
+# cheap 401 before consuming rate-limit budget.
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(APIKeyMiddleware)
 
 app.include_router(vlr_router)
 app.include_router(v2_router)
