@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.utils.rate_limiter import RateLimitMiddleware
 from routers.v2_router import router as v2_router
 from routers.vlr_router import router as vlr_router
+from utils.auth_middleware import APIKeyMiddleware
 from utils.constants import API_DESCRIPTION, API_PORT, API_TITLE, API_VERSION
 from utils.http_client import close_http_client
 
@@ -36,7 +37,11 @@ app = FastAPI(
 # is the outermost. The rate limiter is registered first so CORS ends up around
 # it — otherwise a 429 short-circuits before the CORS layer and browsers report
 # an opaque network error instead of a readable 429 + Retry-After.
+# APIKeyMiddleware sits between them: auth runs before the rate limiter so
+# unauthenticated floods get a cheap 401 without consuming rate-limit budget,
+# and CORS still wraps the 401.
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(APIKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
