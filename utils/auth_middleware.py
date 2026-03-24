@@ -12,7 +12,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-EXEMPT_PATHS = {"/v2/health", "/health", "/", "/openapi.json"}
+EXEMPT_PATHS = {"/v2/health", "/health", "/", "/openapi.json", "/robots.txt"}
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
