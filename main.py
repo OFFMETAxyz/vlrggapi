@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 
 from routers.vlr_router import router as vlr_router
 from routers.v2_router import router as v2_router
+from utils.auth_middleware import APIKeyMiddleware
 from utils.http_client import close_http_client
 from utils.constants import API_TITLE, API_DESCRIPTION, API_PORT
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting vlrggapi")
     yield
-    logger.info("Shutting down — closing HTTP client")
+    logger.info("Shutting down \u2014 closing HTTP client")
     await close_http_client()
 
 
@@ -32,6 +33,8 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+app.add_middleware(APIKeyMiddleware)
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
