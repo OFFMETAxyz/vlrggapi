@@ -2,6 +2,8 @@
 Configuration constants for VLR.GG API
 """
 
+import os
+
 # Base URLs
 VLR_BASE_URL = "https://www.vlr.gg"
 VLR_EVENTS_URL = f"{VLR_BASE_URL}/events"
@@ -17,7 +19,7 @@ API_DESCRIPTION = (
     "a site for Valorant Esports match and news coverage. "
     "Made by [axsddlr](https://github.com/axsddlr)"
 )
-API_PORT = 3001
+API_PORT = int(os.environ.get("PORT", 3001))
 
 # Pagination limits
 MAX_PAGE_LIMIT = 100
