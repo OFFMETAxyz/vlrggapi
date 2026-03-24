@@ -2,6 +2,8 @@
 Configuration constants for VLR.GG API
 """
 
+import os
+
 # Base URLs
 VLR_BASE_URL = "https://www.vlr.gg"
 VLR_EVENTS_URL = f"{VLR_BASE_URL}/events"
@@ -20,7 +22,7 @@ API_DESCRIPTION = (
     "a site for Valorant Esports match and news coverage. "
     "Made by [axsddlr](https://github.com/axsddlr)"
 )
-API_PORT = 3001
+API_PORT = int(os.environ.get("PORT", 3001))
 
 # Pagination limits
 MAX_PAGE_LIMIT = 100
@@ -49,7 +51,7 @@ CACHE_TTL_RANKINGS = 3600
 CACHE_TTL_EVENTS = 1800
 CACHE_MAX_SIZE = 1000
 
-# Cache TTLs — new scraper endpoints
+# Cache TTLs \u2014 new scraper endpoints
 CACHE_TTL_MATCH_DETAIL = 300
 CACHE_TTL_MATCH_DETAIL_LIVE = 30
 CACHE_TTL_PLAYER = 1800
