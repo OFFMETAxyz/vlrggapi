@@ -28,12 +28,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 #   cheap:    200 req/min — health checks, version pings (no outbound scrape)
 #   moderate:  60 req/min — 1–2 scrapes per request
-#   expensive: 20 req/min — 3+ sub-scrapes (match detail, player, team, stats)
+#   expensive: 60 req/min — 3+ sub-scrapes (match detail, player, team, stats)
 # ---------------------------------------------------------------------------
+# Single-tenant deployment note: all OFFMgg traffic egresses one Railway IP, so
+# every tier is one shared bucket. /stats runs 1 prime + 4 regions per pass and
+# makeAPIRequestWithRetry retries up to 3× — worst case ~20 req/min lands
+# exactly on the old expensive ceiling. Raised to 60 for headroom.
 TIERS: dict[str, tuple[int, int]] = {
     "cheap": (200, 60),
     "moderate": (60, 60),
-    "expensive": (20, 60),
+    "expensive": (60, 60),
 }
 
 # URL-pattern → tier mapping. Order matters: more specific paths first.
