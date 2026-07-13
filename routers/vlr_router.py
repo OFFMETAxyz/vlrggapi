@@ -1,9 +1,7 @@
 """
 Original unversioned API router — preserved for backwards compatibility.
 """
-from fastapi import APIRouter, Query, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from fastapi import APIRouter, Query
 
 from routers.shared_handlers import (
     get_event_matches_data,
@@ -21,7 +19,7 @@ from routers.shared_handlers import (
     get_team_transactions_data,
     to_legacy_rankings_shape,
 )
-from utils.constants import RATE_LIMIT, MAX_MATCH_QUERY_BOUND
+from utils.constants import MAX_MATCH_QUERY_BOUND
 from utils.error_handling import (
     validate_id_param,
     validate_match_workload,
@@ -29,19 +27,38 @@ from utils.error_handling import (
 )
 
 router = APIRouter(tags=["Default"])
-limiter = Limiter(key_func=get_remote_address)
+
+
+def _strip_match_team_ids(payload: dict) -> dict:
+    """Preserve the historical /match/details team shape for legacy clients."""
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return payload
+
+    segments = data.get("segments")
+    if not isinstance(segments, list):
+        return payload
+
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        teams = segment.get("teams")
+        if not isinstance(teams, list):
+            continue
+        for team in teams:
+            if isinstance(team, dict):
+                team.pop("id", None)
+
+    return payload
 
 
 @router.get("/news")
-@limiter.limit(RATE_LIMIT)
-async def VLR_news(request: Request):
+async def VLR_news():
     return await get_news_data()
 
 
 @router.get("/stats")
-@limiter.limit(RATE_LIMIT)
 async def VLR_stats(
-    request: Request,
     region: str = Query(..., description="Region shortname"),
     timespan: str = Query(..., description="Timespan (30, 60, 90, or all)"),
 ):
@@ -61,9 +78,8 @@ async def VLR_stats(
 
 
 @router.get("/rankings")
-@limiter.limit(RATE_LIMIT)
 async def VLR_ranks(
-    request: Request, region: str = Query(..., description="Region shortname")
+    region: str = Query(..., description="Region shortname"),
 ):
     """
     Get VLR rankings for a specific region.
@@ -88,9 +104,7 @@ async def VLR_ranks(
 
 
 @router.get("/match")
-@limiter.limit(RATE_LIMIT)
 async def VLR_match(
-    request: Request,
     q: str,
     num_pages: int = Query(1, description="Number of pages to scrape (default: 1)", ge=1, le=MAX_MATCH_QUERY_BOUND),
     from_page: int = Query(None, description="Starting page number (1-based, optional)", ge=1, le=MAX_MATCH_QUERY_BOUND),
@@ -123,14 +137,12 @@ async def VLR_match(
 
 
 @router.get("/events")
-@limiter.limit(RATE_LIMIT)
 async def VLR_events(
-    request: Request,
     q: str = Query(
         None,
         description="Event type filter",
         examples=["completed"],
-        enum=["upcoming", "completed"]
+        enum=["upcoming", "completed", "live"]
     ),
     page: int = Query(
         1,
@@ -147,20 +159,16 @@ async def VLR_events(
 
 
 @router.get("/match/details")
-@limiter.limit(RATE_LIMIT)
 async def VLR_match_detail(
-    request: Request,
     match_id: str = Query(..., description="VLR.GG match ID"),
 ):
     """Get detailed match data including per-map stats, rounds, and head-to-head."""
     validate_id_param(match_id, "match_id")
-    return await get_match_detail_data(match_id)
+    return _strip_match_team_ids(await get_match_detail_data(match_id))
 
 
 @router.get("/player")
-@limiter.limit(RATE_LIMIT)
 async def VLR_player(
-    request: Request,
     id: str = Query(..., description="VLR.GG player ID"),
     timespan: str = Query("90d", description="Stats timespan: 30d, 60d, 90d, or all"),
 ):
@@ -171,9 +179,7 @@ async def VLR_player(
 
 
 @router.get("/player/matches")
-@limiter.limit(RATE_LIMIT)
 async def VLR_player_matches(
-    request: Request,
     id: str = Query(..., description="VLR.GG player ID"),
     page: int = Query(1, description="Page number", ge=1, le=100),
 ):
@@ -183,9 +189,7 @@ async def VLR_player_matches(
 
 
 @router.get("/team")
-@limiter.limit(RATE_LIMIT)
 async def VLR_team(
-    request: Request,
     id: str = Query(..., description="VLR.GG team ID"),
 ):
     """Get team profile with roster, rating, and event placements."""
@@ -194,9 +198,7 @@ async def VLR_team(
 
 
 @router.get("/team/matches")
-@limiter.limit(RATE_LIMIT)
 async def VLR_team_matches(
-    request: Request,
     id: str = Query(..., description="VLR.GG team ID"),
     page: int = Query(1, description="Page number", ge=1, le=100),
 ):
@@ -206,9 +208,7 @@ async def VLR_team_matches(
 
 
 @router.get("/team/transactions")
-@limiter.limit(RATE_LIMIT)
 async def VLR_team_transactions(
-    request: Request,
     id: str = Query(..., description="VLR.GG team ID"),
 ):
     """Get roster transaction history for a team."""
@@ -217,9 +217,7 @@ async def VLR_team_transactions(
 
 
 @router.get("/events/matches")
-@limiter.limit(RATE_LIMIT)
 async def VLR_event_matches(
-    request: Request,
     event_id: str = Query(..., description="VLR.GG event ID"),
 ):
     """Get match list for a specific event."""

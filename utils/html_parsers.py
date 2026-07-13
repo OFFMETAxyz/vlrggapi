@@ -2,18 +2,21 @@
 Common HTML parsing utilities for VLR.GG scrapers
 """
 import re
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
-
 from zoneinfo import ZoneInfo
+
+from selectolax.lexbor import LexborHTMLParser
+from selectolax.parser import HTMLParser  # noqa: F401  re-exported for type hints
 
 
 def extract_text_content(element, strip: bool = True) -> str:
-    """Extract text content from an HTML element safely"""
+    """Extract text content from an HTML element safely, collapsing internal whitespace."""
     if not element:
         return ""
-    return element.text(strip=strip)
+    text = element.text(strip=False)
+    collapsed = re.sub(r"\s+", " ", text)
+    return collapsed.strip() if strip else collapsed
 
 
 def extract_prize_value(prize_elem) -> str:
@@ -156,7 +159,7 @@ def extract_match_teams(item, selector: str = ".h-match-team") -> tuple[dict, di
 
 # --- Timestamp parsing helpers (moved from matches.py) ---
 
-def parse_eta_to_timedelta(eta_text: str) -> Optional[timedelta]:
+def parse_eta_to_timedelta(eta_text: str) -> timedelta | None:
     """Parse '4h 1m' / '1d 2h' / '30m' into timedelta. Returns None for LIVE/ago/unparseable."""
     if not eta_text:
         return None
@@ -223,7 +226,7 @@ def combine_date_and_time(date_str: str, time_text: str) -> str:
         return ""
 
     local_dt = datetime.combine(parsed_date, parsed_time, tzinfo=eastern)
-    utc_dt = local_dt.astimezone(timezone.utc)
+    utc_dt = local_dt.astimezone(UTC)
     return utc_dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -242,7 +245,7 @@ def parse_match_timestamp(item, date_str: str) -> str:
         if unix_ts:
             try:
                 return datetime.fromtimestamp(
-                    int(unix_ts), tz=timezone.utc
+                    int(unix_ts), tz=UTC
                 ).strftime("%Y-%m-%d %H:%M:%S")
             except (ValueError, OSError):
                 pass
@@ -252,7 +255,7 @@ def parse_match_timestamp(item, date_str: str) -> str:
     if eta_elem:
         delta = parse_eta_to_timedelta(eta_elem.text())
         if delta is not None:
-            utc_dt = datetime.now(timezone.utc) + delta
+            utc_dt = datetime.now(UTC) + delta
             return utc_dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # Strategy 3: date header + match time
@@ -305,6 +308,22 @@ def infer_platform(url: str) -> str:
     return "other"
 
 
+_STRIP_RE = re.compile(
+    r'<(script|style)[^>]*>.*?</\1>|<!--.*?-->',
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def strip_html(html: str) -> str:
+    """Remove scripts, styles, and HTML comments."""
+    return _STRIP_RE.sub("", html)
+
+
+def parse_html(html: str):
+    """Strip noise from HTML then parse with selectolax (lexbor backend)."""
+    return LexborHTMLParser(strip_html(html))
+
+
 def parse_match_items(html, container_selector: str = "a.wf-module-item.match-item") -> list[dict]:
     """Parse match list items shared by player/team match history pages.
 
@@ -333,7 +352,7 @@ def parse_match_items(html, container_selector: str = "a.wf-module-item.match-it
         event_el = item.css_first(".match-item-event")
         event_text = ""
         if event_el:
-            lines = [l.strip() for l in event_el.text().split("\n") if l.strip()]
+            lines = [line.strip() for line in event_el.text().split("\n") if line.strip()]
             event_text = lines[-1] if lines else ""
         series_el = item.css_first(".match-item-event-series")
         event_series = " ".join(series_el.text().split()) if series_el else ""

@@ -90,6 +90,62 @@ async def test_original_match_detail_rejects_invalid_id(client):
 
 
 @pytest.mark.anyio
+async def test_v2_match_detail_exposes_team_ids(client, monkeypatch):
+    async def fake_match_detail(match_id):
+        return {
+            "data": {
+                "status": 200,
+                "segments": [
+                    {
+                        "match_id": match_id,
+                        "teams": [
+                            {"id": "100", "name": "Team One"},
+                            {"id": "200", "name": "Team Two"},
+                        ],
+                    }
+                ],
+            }
+        }
+
+    monkeypatch.setattr("routers.v2_router.get_match_detail_data", fake_match_detail)
+
+    resp = await client.get("/v2/match/details?match_id=123")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["segments"][0]["teams"] == [
+        {"id": "100", "name": "Team One"},
+        {"id": "200", "name": "Team Two"},
+    ]
+
+
+@pytest.mark.anyio
+async def test_original_match_detail_strips_team_ids(client, monkeypatch):
+    async def fake_match_detail(match_id):
+        return {
+            "data": {
+                "status": 200,
+                "segments": [
+                    {
+                        "match_id": match_id,
+                        "teams": [
+                            {"id": "100", "name": "Team One"},
+                            {"id": "200", "name": "Team Two"},
+                        ],
+                    }
+                ],
+            }
+        }
+
+    monkeypatch.setattr("routers.vlr_router.get_match_detail_data", fake_match_detail)
+
+    resp = await client.get("/match/details?match_id=123")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["segments"][0]["teams"] == [
+        {"name": "Team One"},
+        {"name": "Team Two"},
+    ]
+
+
+@pytest.mark.anyio
 async def test_v2_wrap_propagates_scraper_error_status(client, monkeypatch):
     async def fake_news():
         return {"data": {"status": 502, "error": "upstream failure", "segments": []}}
@@ -98,6 +154,38 @@ async def test_v2_wrap_propagates_scraper_error_status(client, monkeypatch):
     resp = await client.get("/v2/news")
     assert resp.status_code == 502
     assert "detail" in resp.json()
+
+
+@pytest.mark.anyio
+async def test_v2_events_propagates_scraper_error_status(client, monkeypatch):
+    async def fake_events(q, page):
+        return {"data": {"status": 503, "error": "events unavailable", "segments": []}}
+
+    monkeypatch.setattr("routers.v2_router.get_events_data", fake_events)
+
+    resp = await client.get("/v2/events")
+
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "events unavailable"
+
+
+@pytest.mark.anyio
+async def test_v2_player_propagates_scraper_error_status(client, monkeypatch):
+    async def fake_player(player_id, timespan):
+        return {
+            "data": {
+                "status": 404,
+                "error": f"player {player_id} not found",
+                "segments": [],
+            }
+        }
+
+    monkeypatch.setattr("routers.v2_router.get_player_data", fake_player)
+
+    resp = await client.get("/v2/player?id=9")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "player 9 not found"
 
 
 @pytest.mark.anyio

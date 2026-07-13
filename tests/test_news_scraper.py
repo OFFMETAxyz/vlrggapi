@@ -1,9 +1,9 @@
 import asyncio
+
 import pytest
 
 from api.scrapers.news import vlr_news
 from utils.cache_manager import cache_manager
-
 
 NEWS_HTML = """
 <html>
@@ -57,6 +57,7 @@ class FakeResponse:
     def __init__(self, status_code: int, text: str):
         self.status_code = status_code
         self.text = text
+        self.headers: dict = {}
 
 
 class FakeAsyncClient:

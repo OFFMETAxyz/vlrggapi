@@ -13,6 +13,7 @@ from utils.constants import (
     MAX_MATCH_RETRIES,
     MAX_MATCH_TIMEOUT,
 )
+from utils.http_client import CircuitOpenError
 from utils.utils import region
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,29 @@ logger = logging.getLogger(__name__)
 VALID_TIMESPANS = {"30", "60", "90", "all"}
 VALID_PLAYER_TIMESPANS = {"30d", "60d", "90d", "all"}
 VALID_MATCH_QUERIES = {"upcoming", "upcoming_extended", "live_score", "results"}
-VALID_EVENT_QUERIES = {"upcoming", "completed", None}
+VALID_EVENT_QUERIES = {"upcoming", "completed", "live", None}
+VALID_TEAM_QUERIES = {"profile", "matches", "transactions", "stats"}
+VALID_PLAYER_QUERIES = {"profile", "matches"}
+
+
+def upstream_error_payload(status_code: int, context: str) -> dict:
+    """Return a standard scraper payload for upstream HTTP failures."""
+    return {
+        "data": {
+            "status": status_code,
+            "error": f"VLR.GG returned status {status_code} for {context}",
+            "segments": [],
+        }
+    }
+
+
+def raise_for_upstream_status(status_code: int, context: str) -> None:
+    """Raise a FastAPI HTTPException when VLR.GG returns an error status."""
+    if status_code >= 400:
+        raise HTTPException(
+            status_code=status_code,
+            detail=f"VLR.GG returned status {status_code} for {context}",
+        )
 
 
 def handle_scraper_errors(func):
@@ -28,6 +51,10 @@ def handle_scraper_errors(func):
     def _raise_http_error(exc: Exception):
         if isinstance(exc, HTTPException):
             raise exc
+
+        if isinstance(exc, CircuitOpenError):
+            logger.warning("Circuit open in %s: %s", func.__name__, exc)
+            raise HTTPException(status_code=503, detail=str(exc))
 
         if isinstance(exc, httpx.TimeoutException):
             logger.error("Timeout in %s: %s", func.__name__, exc)
@@ -91,7 +118,7 @@ def validate_event_query(q: str | None):
     if q not in VALID_EVENT_QUERIES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid event query '{q}'. Valid values: upcoming, completed",
+            detail=f"Invalid event query '{q}'. Valid values: upcoming, completed, live",
         )
 
 
@@ -101,6 +128,24 @@ def validate_player_timespan(ts: str):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid timespan '{ts}'. Valid values: {', '.join(sorted(VALID_PLAYER_TIMESPANS))}",
+        )
+
+
+def validate_team_query(q: str):
+    """Validate team query parameter. Raises 400 on invalid."""
+    if q not in VALID_TEAM_QUERIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid team query '{q}'. Valid values: {', '.join(sorted(VALID_TEAM_QUERIES))}",
+        )
+
+
+def validate_player_query(q: str):
+    """Validate player query parameter. Raises 400 on invalid."""
+    if q not in VALID_PLAYER_QUERIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid player query '{q}'. Valid values: {', '.join(sorted(VALID_PLAYER_QUERIES))}",
         )
 
 

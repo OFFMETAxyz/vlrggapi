@@ -1,4 +1,5 @@
 import pytest
+from selectolax.parser import HTMLParser
 
 from api.scrapers.rankings import (
     _extract_last_played_summary,
@@ -6,8 +7,6 @@ from api.scrapers.rankings import (
     vlr_rankings,
 )
 from utils.cache_manager import cache_manager
-from selectolax.parser import HTMLParser
-
 
 RANKINGS_HTML = """
 <html>
@@ -63,6 +62,7 @@ class FakeResponse:
     def __init__(self, status_code: int, text: str):
         self.status_code = status_code
         self.text = text
+        self.headers: dict = {}
 
 
 class FakeAsyncClient:

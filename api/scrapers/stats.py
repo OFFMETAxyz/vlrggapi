@@ -1,12 +1,15 @@
 import logging
 
-from selectolax.parser import HTMLParser
-
-from utils.http_client import fetch_with_retries, get_http_client
-from utils.constants import VLR_STATS_URL, CACHE_TTL_STATS
 from utils.cache_manager import cache_manager
-from utils.error_handling import handle_scraper_errors, validate_region, validate_timespan
-from utils.html_parsers import extract_text_content
+from utils.constants import CACHE_TTL_STATS, VLR_STATS_URL
+from utils.error_handling import (
+    handle_scraper_errors,
+    raise_for_upstream_status,
+    validate_region,
+    validate_timespan,
+)
+from utils.html_parsers import extract_text_content, parse_html
+from utils.http_client import fetch_with_retries, get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ def _parse_stats_row(item) -> dict:
         "first_deaths_per_round": _cell_text(cells, 11),
         "headshot_percentage": _cell_text(cells, 12),
         "clutch_success_percentage": _cell_text(cells, 13),
+        "clutch_attempts": _cell_text(cells, 14),
     }
 
 
@@ -73,8 +77,10 @@ async def vlr_stats(region_key: str, timespan: str):
 
         client = get_http_client()
         resp = await fetch_with_retries(url, client=client)
-        html = HTMLParser(resp.text)
         status = resp.status_code
+        raise_for_upstream_status(status, "stats")
+
+        html = parse_html(resp.text)
 
         result = []
         for item in html.css("tbody tr"):
@@ -83,9 +89,6 @@ async def vlr_stats(region_key: str, timespan: str):
                 result.append(parsed)
 
         data = {"data": {"status": status, "segments": result}}
-
-        if status != 200:
-            raise Exception("API response: {}".format(status))
 
         return data
 

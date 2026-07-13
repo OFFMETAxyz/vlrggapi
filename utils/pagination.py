@@ -3,21 +3,21 @@ Shared pagination and retry logic for multi-page scrapers.
 """
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Callable, List
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 from selectolax.parser import HTMLParser
 
-from utils.http_client import get_http_client
 from utils.constants import (
-    DEFAULT_RETRIES,
     DEFAULT_REQUEST_DELAY,
+    DEFAULT_RETRIES,
     DEFAULT_TIMEOUT,
     MAX_MATCH_PAGE_WINDOW,
     MAX_MATCH_RETRIES,
     MAX_MATCH_TIMEOUT,
 )
+from utils.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
