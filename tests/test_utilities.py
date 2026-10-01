@@ -81,6 +81,10 @@ class TestParseMatchTimestamp:
     def test_data_utc_ts_is_eastern_winter(self):
         assert parse_match_timestamp(self._item("2026-01-15 20:00:00"), "") == "2026-01-16 01:00:00"
 
+    def test_data_utc_ts_unix_number(self):
+        # Homepage: 1790845200 is shown as 11:00 AM CEST
+        assert parse_match_timestamp(self._item("1790845200"), "") == "2026-10-01 09:00:00"
+
     def test_unparseable_data_utc_ts_falls_through(self):
         assert parse_match_timestamp(self._item("soon"), "") == ""
 
