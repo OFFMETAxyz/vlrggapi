@@ -244,21 +244,23 @@ def combine_date_and_time(date_str: str, time_text: str) -> str:
 def parse_match_timestamp(item, date_str: str) -> str:
     """Multi-strategy timestamp extraction for a match item.
 
-    1. .moment-tz-convert[data-utc-ts]
+    1. .moment-tz-convert[data-utc-ts] -> Eastern -> UTC
     2. .ml-eta countdown -> utcnow() + delta
     3. date header + .match-item-time -> Eastern -> UTC
     4. '' if all fail
     """
-    # Strategy 1: direct UTC timestamp element
+    # Strategy 1: timestamp attribute. Despite its name, vlr.gg renders
+    # data-utc-ts as a US Eastern "YYYY-MM-DD HH:MM:SS" string (e.g.
+    # "2026-07-16 20:20:00" is shown as "2:20 AM CEST").
     ts_elem = item.css_first(".moment-tz-convert")
     if ts_elem:
-        unix_ts = ts_elem.attributes.get("data-utc-ts")
-        if unix_ts:
+        raw_ts = ts_elem.attributes.get("data-utc-ts")
+        if raw_ts:
             try:
-                return datetime.fromtimestamp(
-                    int(unix_ts), tz=UTC
-                ).strftime("%Y-%m-%d %H:%M:%S")
-            except (ValueError, OSError):
+                local_dt = datetime.strptime(raw_ts.strip(), "%Y-%m-%d %H:%M:%S")
+                utc_dt = local_dt.replace(tzinfo=ZoneInfo("America/New_York")).astimezone(UTC)
+                return utc_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
                 pass
 
     # Strategy 2: ETA countdown
