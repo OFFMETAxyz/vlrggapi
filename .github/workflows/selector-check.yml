@@ -13,6 +13,10 @@ jobs:
   check-selectors:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The alert step opens or comments on an issue; the repo default token is read-only.
+    permissions:
+      contents: read
+      issues: write
     # UV_PYTHON wins over .python-version, which pins 3.11.
     env:
       UV_PYTHON: "3.12"
