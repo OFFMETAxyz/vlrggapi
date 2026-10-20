@@ -10,6 +10,7 @@ stage's. The `stages` list names every stage; pass a stage slug to read
 another stage's view.
 """
 import logging
+from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
@@ -241,9 +242,10 @@ def _parse_event_teams(html: HTMLParser) -> list[dict]:
             note_link = note_elem.css_first("a")
             if note_link:
                 note = extract_text_content(note_link)
-                note_href = note_link.attributes.get("href", "") or ""
-                if note_href.strip("/").startswith("event/"):
-                    note_event_id, _ = parse_href_id_slug(note_href)
+                # relative (/event/3090/...) or absolute (https://www.vlr.gg/event/3090/...)
+                note_path = urlparse(note_link.attributes.get("href", "") or "").path
+                if note_path.strip("/").startswith("event/"):
+                    note_event_id, _ = parse_href_id_slug(note_path)
 
         teams.append({
             "id": team_id,

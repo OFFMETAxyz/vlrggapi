@@ -9,7 +9,13 @@ import pytest
 from fastapi import HTTPException
 
 import api.scrapers.events as events_module
-from api.scrapers.event_detail import _parse_event_stages, _parse_event_teams, _parse_prizes, _parse_standings, vlr_event_detail
+from api.scrapers.event_detail import (
+    _parse_event_stages,
+    _parse_event_teams,
+    _parse_prizes,
+    _parse_standings,
+    vlr_event_detail,
+)
 from api.scrapers.events import _event_match_utc_offset, vlr_event_matches
 from utils.cache_manager import cache_manager
 from utils.html_parsers import parse_html
@@ -354,6 +360,7 @@ def test_parse_event_teams_reads_the_qualifier_event_id_of_a_note_link():
         _team_card("Team Solid", "/team/19265/team-solid",
                    "<a href='/event/3090/fgc-2026-qualifier-latam'>FGC LATAM (#1)</a>"),
         _team_card("TBD", "", "<a href='/event/3118/fgc-2026-qualifier-emea'>FGC EMEA (#1)</a>"),
+        _team_card("TBD", "", "<a href='https://www.vlr.gg/event/3118/fgc-2026-qualifier-emea'>FGC EMEA (#2)</a>"),
     ]) + "</body></html>")
 
     teams = _parse_event_teams(html)
@@ -361,6 +368,7 @@ def test_parse_event_teams_reads_the_qualifier_event_id_of_a_note_link():
     assert [(t["name"], t["id"], t["qualification"], t["qualification_event_id"]) for t in teams] == [
         ("Team Solid", "19265", "FGC LATAM (#1)", "3090"),
         ("TBD", "", "FGC EMEA (#1)", "3118"),
+        ("TBD", "", "FGC EMEA (#2)", "3118"),
     ]
 
 
