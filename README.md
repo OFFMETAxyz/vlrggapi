@@ -319,7 +319,8 @@ GET /v2/event/2124?stage=playoffs
       "teams": [{
         "id": "120", "name": "100 Thieves",
         "players": [{ "id": "9", "name": "Asuna", "flag": "mod-us" }],
-        "qualification": "NA Circuit Points"
+        "qualification": "NA Circuit Points",
+        "qualification_event_id": ""
       }],
       "standings": [{
         "stage": "Group Stage", "group": "Group A", "columns": ["Team", "W", "L", "T", "MAP", "RND", "Δ"],

@@ -233,19 +233,24 @@ def _parse_event_teams(html: HTMLParser) -> list[dict]:
                 flag = flag_class.replace("flag ", "").replace(" mod-", "_")
             players.append({"id": p_id, "name": p_name, "flag": flag})
 
-        # Qualification note
+        # Qualification note; its link names the qualifier event the team came through
         note = ""
+        note_event_id = ""
         note_elem = card.css_first(".event-team-note")
         if note_elem:
             note_link = note_elem.css_first("a")
             if note_link:
                 note = extract_text_content(note_link)
+                note_href = note_link.attributes.get("href", "") or ""
+                if note_href.strip("/").startswith("event/"):
+                    note_event_id, _ = parse_href_id_slug(note_href)
 
         teams.append({
             "id": team_id,
             "name": team_name,
             "players": players,
             "qualification": note,
+            "qualification_event_id": note_event_id,
         })
         id_mapper.register_team(team_name, team_id)
         for p in players:

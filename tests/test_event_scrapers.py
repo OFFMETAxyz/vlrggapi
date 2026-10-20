@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException
 
 import api.scrapers.events as events_module
-from api.scrapers.event_detail import _parse_event_stages, _parse_prizes, _parse_standings, vlr_event_detail
+from api.scrapers.event_detail import _parse_event_stages, _parse_event_teams, _parse_prizes, _parse_standings, vlr_event_detail
 from api.scrapers.events import _event_match_utc_offset, vlr_event_matches
 from utils.cache_manager import cache_manager
 from utils.html_parsers import parse_html
@@ -337,6 +337,45 @@ def test_parse_event_stages_lists_every_stage_tab():
 
 def test_parse_event_stages_is_empty_for_single_stage_events():
     assert _parse_event_stages(parse_html("<html><body><div class='event-content'></div></body></html>")) == []
+
+
+def _team_card(name: str, href: str, note: str) -> str:
+    return (
+        "<div class='wf-card event-team'>"
+        f"<a class='event-team-name' href='{href}'>{name}</a>"
+        f"<div class='event-team-note'>{note}</div>"
+        "</div>"
+    )
+
+
+def test_parse_event_teams_reads_the_qualifier_event_id_of_a_note_link():
+    # FGC 2026 (event 3119): each slot names the qualifier it is filled from
+    html = parse_html("<html><body>" + "".join([
+        _team_card("Team Solid", "/team/19265/team-solid",
+                   "<a href='/event/3090/fgc-2026-qualifier-latam'>FGC LATAM (#1)</a>"),
+        _team_card("TBD", "", "<a href='/event/3118/fgc-2026-qualifier-emea'>FGC EMEA (#1)</a>"),
+    ]) + "</body></html>")
+
+    teams = _parse_event_teams(html)
+
+    assert [(t["name"], t["id"], t["qualification"], t["qualification_event_id"]) for t in teams] == [
+        ("Team Solid", "19265", "FGC LATAM (#1)", "3090"),
+        ("TBD", "", "FGC EMEA (#1)", "3118"),
+    ]
+
+
+def test_parse_event_teams_leaves_the_qualifier_id_empty_without_an_event_link():
+    html = parse_html("<html><body>" + "".join([
+        _team_card("100 Thieves", "/team/120/100-thieves", "<a href='/rankings/north-america'>NA Circuit Points</a>"),
+        _team_card("Sentinels", "/team/2/sentinels", "Invited"),
+    ]) + "</body></html>")
+
+    teams = _parse_event_teams(html)
+
+    assert [(t["qualification"], t["qualification_event_id"]) for t in teams] == [
+        ("NA Circuit Points", ""),
+        ("", ""),
+    ]
 
 
 @pytest.mark.anyio
