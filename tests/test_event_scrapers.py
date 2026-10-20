@@ -14,6 +14,7 @@ from api.scrapers.event_detail import (
     _parse_event_teams,
     _parse_prizes,
     _parse_standings,
+    _qualifier_event_id,
     vlr_event_detail,
 )
 from api.scrapers.events import _event_match_utc_offset, vlr_event_matches
@@ -420,3 +421,19 @@ async def test_vlr_event_detail_rejects_an_unknown_stage(monkeypatch):
     assert exc_info.value.status_code == 404
     assert "playoffs, group-stage" in exc_info.value.detail
     cache_manager.clear_all()
+
+
+@pytest.mark.parametrize(
+    "href,expected",
+    [
+        ("/event/3090/fgc-2026-qualifier-latam", "3090"),
+        ("https://www.vlr.gg/event/3118/fgc-2026-qualifier-emea", "3118"),
+        ("https://vlr.gg/event/3118", "3118"),
+        ("https://evil.example/event/3118/x", ""),
+        ("/rankings/north-america", ""),
+        ("http://[::1/event/3118", ""),
+        ("", ""),
+    ],
+)
+def test_qualifier_event_id_reads_only_vlr_event_links(href, expected):
+    assert _qualifier_event_id(href) == expected

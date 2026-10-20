@@ -206,6 +206,23 @@ def _parse_prizes(html: HTMLParser) -> list[dict]:
     return prizes
 
 
+def _qualifier_event_id(href: str) -> str:
+    """The VLR event id a qualification note links to: a relative /event/<id>/... href or an
+    absolute vlr.gg one. Another host, another route or an unparseable href gives ''."""
+    try:
+        parts = urlparse(href)
+    except ValueError:
+        logger.debug("skipping unparseable qualification href: %r", href)
+        return ""
+    host = (parts.hostname or "").lower()
+    if host and host != "vlr.gg" and not host.endswith(".vlr.gg"):
+        return ""
+    if not parts.path.strip("/").startswith("event/"):
+        return ""
+    event_id, _ = parse_href_id_slug(parts.path)
+    return event_id
+
+
 def _parse_event_teams(html: HTMLParser) -> list[dict]:
     """Parse participating teams from event-team cards."""
     teams: list[dict] = []
@@ -242,10 +259,7 @@ def _parse_event_teams(html: HTMLParser) -> list[dict]:
             note_link = note_elem.css_first("a")
             if note_link:
                 note = extract_text_content(note_link)
-                # relative (/event/3090/...) or absolute (https://www.vlr.gg/event/3090/...)
-                note_path = urlparse(note_link.attributes.get("href", "") or "").path
-                if note_path.strip("/").startswith("event/"):
-                    note_event_id, _ = parse_href_id_slug(note_path)
+                note_event_id = _qualifier_event_id(note_link.attributes.get("href", "") or "")
 
         teams.append({
             "id": team_id,
