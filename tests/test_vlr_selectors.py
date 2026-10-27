@@ -149,16 +149,19 @@ def _vods_are_published(tree: SelectolaxParser) -> bool:
     return True
 
 
-def _logs_are_published(tree: SelectolaxParser) -> bool:
-    """True when the logs tab carries the round log of the active game.
+def _replay_is_published(tree: SelectolaxParser) -> bool:
+    """True unless the logs tab says the active game has no 2D replay yet.
 
-    A match without a published replay renders an ``.lg-empty`` "No 2D replay
-    for this map" block inside the *active* game block in place of the round
-    log, while the stats placeholder is absent, so the stats predicate passes
-    it. As with stats, only the active block decides.
+    A match whose replay vlr.gg has not processed (seen on VCT China matches
+    hours to days after they ended) renders ``.lg-empty`` "No 2D replay for this
+    map" as the active game block's only content, and no stats placeholder, so
+    the stats predicate passes it. ``.lg-empty`` is also the "Loading…"
+    placeholder of a lazily loaded (``js-lg-lazy``) block; a lazy *active* block
+    is graded, so a move to lazy-loading every map fails loudly instead of
+    making every witness look unready.
     """
     active = tree.css_first(".vm-stats-game.mod-active")
-    if active is None:
+    if active is None or "js-lg-lazy" in active.attributes.get("class", ""):
         # Unexpected shape: let the grader say so rather than skip the page.
         return True
     return active.css_first(".lg-empty") is None
@@ -169,7 +172,7 @@ def _readiness_for(label: str) -> Callable[[SelectolaxParser], bool]:
     if label == "match_detail":
         return _vods_are_published
     if label == "match_detail_logs":
-        return _logs_are_published
+        return _replay_is_published
     return _stats_are_published
 
 
@@ -882,7 +885,7 @@ async def _settled_witnesses(
         probed = min(len(candidates), _MAX_WITNESS_PROBES)
         _READINESS_NOTES[label] = (
             f"{probed} candidate page(s) probed for {label}, but none had "
-            f"published stats/VODs, so no selector was asserted"
+            f"published stats/VODs/replay, so no selector was asserted"
         )
     return picked
 
