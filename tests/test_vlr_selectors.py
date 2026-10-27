@@ -149,9 +149,28 @@ def _vods_are_published(tree: SelectolaxParser) -> bool:
     return True
 
 
+def _logs_are_published(tree: SelectolaxParser) -> bool:
+    """True when the logs tab carries the round log of the active game.
+
+    A match without a published replay renders an ``.lg-empty`` "No 2D replay
+    for this map" block inside the *active* game block in place of the round
+    log, while the stats placeholder is absent, so the stats predicate passes
+    it. As with stats, only the active block decides.
+    """
+    active = tree.css_first(".vm-stats-game.mod-active")
+    if active is None:
+        # Unexpected shape: let the grader say so rather than skip the page.
+        return True
+    return active.css_first(".lg-empty") is None
+
+
 def _readiness_for(label: str) -> Callable[[SelectolaxParser], bool]:
     """Readiness predicate for a witness of ``label``."""
-    return _vods_are_published if label == "match_detail" else _stats_are_published
+    if label == "match_detail":
+        return _vods_are_published
+    if label == "match_detail_logs":
+        return _logs_are_published
+    return _stats_are_published
 
 
 # ---------------------------------------------------------------------------

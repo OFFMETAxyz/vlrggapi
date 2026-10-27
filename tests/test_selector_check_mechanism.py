@@ -20,6 +20,7 @@ from tests.test_vlr_selectors import (
     PageData,
     _extract_match_ids,
     _extract_player_ids,
+    _logs_are_published,
     _no_witness_reason,
     _no_witness_result,
     _probe_indices,
@@ -587,6 +588,27 @@ VODS_PUBLISHED = """
 </html>
 """
 
+# Shape of a freshly completed match's logs tab (vlr.gg 777957, 27-10-2026): the
+# stats placeholder is absent, the active game renders "No 2D replay".
+LOGS_NOT_PUBLISHED = """
+<html>
+  <div class="vm-stats-container">
+    <div class="vm-stats-game mod-active"><div class="lg-empty">No 2D replay for this map</div></div>
+  </div>
+</html>
+"""
+
+LOGS_PUBLISHED = """
+<html>
+  <div class="vm-stats-container">
+    <div class="vm-stats-game mod-active">
+      <div class="lg-map" data-map="Ascent"><div class="lg-band"></div><div class="lg-round"></div></div>
+    </div>
+    <div class="vm-stats-game"><div class="lg-empty">No 2D replay for this map</div></div>
+  </div>
+</html>
+"""
+
 
 class _FakeClient:
     """Serves canned HTML per URL and records the requests it served."""
@@ -625,6 +647,14 @@ def test_stats_readiness_reads_only_the_active_game_block():
 def test_stats_readiness_grades_an_unrecognised_page_rather_than_skipping_it():
     """A page without the wrapper must reach the grader and fail loudly."""
     assert _stats_are_published(SelectolaxParser("<html><div>?</div></html>")) is True
+
+
+def test_logs_readiness_reads_only_the_active_game_block():
+    assert _logs_are_published(SelectolaxParser(LOGS_NOT_PUBLISHED)) is False
+    assert _logs_are_published(SelectolaxParser(LOGS_PUBLISHED)) is True
+    # The stats predicate passes an unpublished logs tab, which is the bug.
+    assert _stats_are_published(SelectolaxParser(LOGS_NOT_PUBLISHED)) is True
+    assert _logs_are_published(SelectolaxParser("<html><div>?</div></html>")) is True
 
 
 def test_vods_readiness_sees_the_empty_state_and_the_zero_count():
