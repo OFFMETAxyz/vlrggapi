@@ -338,7 +338,7 @@ async def test_vlr_stats_defaults_keep_the_previous_contract(monkeypatch):
 
 @pytest.mark.anyio
 async def test_vlr_stats_sends_every_tier_and_the_span_param(monkeypatch):
-    """The revamped filter defaults to VCT only and ignores ``timespan``."""
+    """The revamped filter defaults to VCT only and submits the window as ``span``."""
     fetch = _install_fake_fetch(monkeypatch)
 
     await vlr_stats("emea", "90")

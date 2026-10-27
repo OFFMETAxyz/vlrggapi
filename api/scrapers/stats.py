@@ -234,8 +234,8 @@ async def vlr_stats(
                 ("min_rating", int(round(min_rating * 1000))),
                 ("agent", "all"),
                 ("map_id", map_id),
-                # The revamp renamed ``timespan`` to ``span``; the old name is
-                # ignored and the page falls back to its 60d default.
+                # The revamped form submits the window as ``span``; the legacy
+                # ``timespan`` is still honoured, but the site's own name is sent.
                 ("span", "all" if timespan.lower() == "all" else f"{timespan}d"),
             ]
         )
