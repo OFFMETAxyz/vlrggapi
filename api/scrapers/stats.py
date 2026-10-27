@@ -16,6 +16,10 @@ from utils.error_handling import (
 from utils.html_parsers import extract_text_content, parse_html
 from utils.http_client import fetch_with_retries, get_http_client
 
+# Every value of the /stats ``tier[]`` filter (VCT, VCL, tier 3, Game Changers,
+# collegiate, offseason).
+STATS_TIERS = ("vct", "vcl", "t3", "gc", "cg", "off")
+
 logger = logging.getLogger(__name__)
 
 # vlr.gg emits stable, semantic ``data-col`` attributes on every stats <th> except
@@ -217,18 +221,23 @@ async def vlr_stats(
         # but the plural is what the site itself sends, so that is the shape we
         # track. Values stay in the /stats vocabulary (see STATS_REGIONS).
         query = urlencode(
-            {
-                "event_group_id": "all",
-                "event_id": resolved_event_id,
-                "region[]": region_key,
-                "country": "all",
-                "min_rounds": min_rounds,
+            [
+                ("event_group_id", "all"),
+                ("event_id", resolved_event_id),
+                ("region[]", region_key),
+                # The revamp defaults the tier filter to VCT only; every tier is
+                # sent so the result keeps the pre-revamp all-tiers scope.
+                *(("tier[]", tier) for tier in STATS_TIERS),
+                ("country", "all"),
+                ("min_rounds", min_rounds),
                 # vlr.gg expresses the rating floor on a x1000 integer scale.
-                "min_rating": int(round(min_rating * 1000)),
-                "agent": "all",
-                "map_id": map_id,
-                "timespan": "all" if timespan.lower() == "all" else f"{timespan}d",
-            }
+                ("min_rating", int(round(min_rating * 1000))),
+                ("agent", "all"),
+                ("map_id", map_id),
+                # The revamp renamed ``timespan`` to ``span``; the old name is
+                # ignored and the page falls back to its 60d default.
+                ("span", "all" if timespan.lower() == "all" else f"{timespan}d"),
+            ]
         )
         url = f"{VLR_STATS_URL}/?{query}"
 
